@@ -8,7 +8,7 @@ on:
 
 env:
   REGISTRY: git.mitsea.com
-  IMAGE_NAME: ${{ gitea.repository }}
+  IMAGE_NAME: ${{ lower(gitea.repository) }}
 
 jobs:
   build-and-push:
