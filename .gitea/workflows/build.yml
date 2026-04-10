@@ -8,7 +8,7 @@ on:
 
 env:
   REGISTRY: git.mitsea.com
-  IMAGE_NAME: ${{ lower(gitea.repository) }}
+  IMAGE_NAME: flintylemming/task-sentinel
 
 jobs:
   build-and-push:
