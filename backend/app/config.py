@@ -5,8 +5,9 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     API_TOKEN: str = "change-me-in-production"
+    ADMIN_PASSWORD: str = "admin"
+    JWT_SECRET: str = "change-me-in-production"
     DATABASE_URL: str = "sqlite+aiosqlite:///./data/task_sentinel.db"
-    CONFIG_PATH: str = "./config.yml"
     TELEGRAM_BOT_TOKEN: str = ""
     TELEGRAM_CHAT_ID: str = ""
     TELEGRAM_PROXY: str = ""
