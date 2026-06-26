@@ -1,6 +1,6 @@
 import logging
 import re
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Security
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -221,3 +221,62 @@ async def delete_task(
         await session.execute(delete(PingLog).where(PingLog.task_id == task_id))
         await session.delete(task)
         await session.commit()
+
+
+@router.get("/tasks/{task_id}/uptime", response_model=list[UptimeDayResponse])
+async def get_task_uptime(task_id: str, days: int = 90):
+    async with async_session() as session:
+        result = await session.execute(select(Task).where(Task.id == task_id))
+        if result.scalar_one_or_none() is None:
+            raise HTTPException(status_code=404, detail="Task not found")
+
+        now = datetime.now(timezone.utc)
+        start_date = now.date() - timedelta(days=days - 1)
+
+        # Fetch all logs for this task in the date range
+        start_datetime = datetime.combine(start_date, datetime.min.time(), tzinfo=timezone.utc)
+        result = await session.execute(
+            select(PingLog)
+            .where(PingLog.task_id == task_id)
+            .where(PingLog.created_at >= start_datetime)
+        )
+        logs = result.scalars().all()
+
+        # Bucket by date
+        buckets: dict[date, dict[str, int]] = {}
+        for log in logs:
+            log_date = log.created_at.date()
+            if log_date not in buckets:
+                buckets[log_date] = {"ok": 0, "fail": 0}
+            if log.status == "success":
+                buckets[log_date]["ok"] += 1
+            elif log.status == "failed":
+                buckets[log_date]["fail"] += 1
+
+        # Build response for each day
+        response = []
+        for i in range(days):
+            day = start_date + timedelta(days=i)
+            counts = buckets.get(day, {"ok": 0, "fail": 0})
+            ok_count = counts["ok"]
+            fail_count = counts["fail"]
+
+            if ok_count == 0 and fail_count == 0:
+                status = "none"
+            elif fail_count == 0:
+                status = "ok"
+            elif ok_count == 0:
+                status = "failed"
+            else:
+                status = "mixed"
+
+            response.append(
+                UptimeDayResponse(
+                    date=day.isoformat(),
+                    ok_count=ok_count,
+                    fail_count=fail_count,
+                    status=status,
+                )
+            )
+
+        return response
