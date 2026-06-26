@@ -18,7 +18,7 @@ export function TaskCard({ task }: TaskCardProps) {
   const remaining = getTimeRemaining(task.next_deadline)
 
   return (
-    <Card className={task.status !== "ok" ? "border-destructive/50" : ""}>
+    <Card className={`transition-shadow hover:shadow-md ${task.status !== "ok" ? "border-destructive/50" : ""}`}>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-base font-medium">{task.name}</CardTitle>
         <Badge variant={cfg.variant} className={cfg.className}>
