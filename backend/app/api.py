@@ -6,10 +6,11 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from .auth import create_token, verify_admin
+from .config import settings
 from .database import async_session
 from .models import PingLog, Task
-from .schemas import DashboardResponse, PingLogResponse, PingRequest, TaskResponse
-from .config import settings
+from .schemas import AuthRequest, AuthResponse, DashboardResponse, PingLogResponse, PingRequest, TaskResponse
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +27,14 @@ async def verify_token(
 
 def _get_session():
     return async_session()
+
+
+@router.post("/auth/check", response_model=AuthResponse)
+async def auth_check(body: AuthRequest):
+    if body.password != settings.ADMIN_PASSWORD:
+        raise HTTPException(status_code=401, detail="Invalid password")
+    token = create_token("admin")
+    return AuthResponse(token=token)
 
 
 @router.post("/ping")
