@@ -1,16 +1,27 @@
 import logging
+import re
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Security
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from sqlalchemy import desc, select
+from sqlalchemy import delete, desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .auth import create_token, verify_admin
 from .config import settings
 from .database import async_session
 from .models import PingLog, Task
-from .schemas import AuthRequest, AuthResponse, DashboardResponse, PingLogResponse, PingRequest, TaskResponse
+from .schemas import (
+    AuthRequest,
+    AuthResponse,
+    CreateTaskRequest,
+    DashboardResponse,
+    PingLogResponse,
+    PingRequest,
+    TaskResponse,
+    UpdateTaskRequest,
+    UptimeDayResponse,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +38,15 @@ async def verify_token(
 
 def _get_session():
     return async_session()
+
+
+def _slugify(text: str) -> str:
+    text = text.lower().strip()
+    text = re.sub(r"[^a-z0-9\s-]", "", text)
+    text = re.sub(r"[\s]+", "-", text)
+    text = re.sub(r"-+", "-", text)
+    text = text.strip("-")
+    return text[:100]
 
 
 @router.post("/auth/check", response_model=AuthResponse)
@@ -118,12 +138,13 @@ async def get_task(task_id: str):
 
 
 @router.get("/tasks/{task_id}/logs", response_model=list[PingLogResponse])
-async def get_task_logs(task_id: str, limit: int = 50):
+async def get_task_logs(task_id: str, limit: int = 50, offset: int = 0):
     async with async_session() as session:
         result = await session.execute(
             select(PingLog)
             .where(PingLog.task_id == task_id)
             .order_by(desc(PingLog.created_at))
+            .offset(offset)
             .limit(limit)
         )
         logs = result.scalars().all()
@@ -137,3 +158,66 @@ async def get_task_logs(task_id: str, limit: int = 50):
             )
             for l in logs
         ]
+
+
+@router.post("/tasks", response_model=TaskResponse, status_code=201)
+async def create_task(
+    body: CreateTaskRequest,
+    _: None = Depends(verify_admin),
+):
+    task_id = _slugify(body.name)
+    async with async_session() as session:
+        result = await session.execute(select(Task).where(Task.id == task_id))
+        if result.scalar_one_or_none() is not None:
+            raise HTTPException(status_code=409, detail="Task ID already exists")
+
+        task = Task(
+            id=task_id,
+            name=body.name,
+            timeout_hours=body.timeout_hours,
+            alert_interval_hours=body.alert_interval_hours,
+            description=body.description,
+            status="offline",
+        )
+        session.add(task)
+        await session.commit()
+        await session.refresh(task)
+        return TaskResponse(**task.to_dict())
+
+
+@router.patch("/tasks/{task_id}", response_model=TaskResponse)
+async def update_task(
+    task_id: str,
+    body: UpdateTaskRequest,
+    _: None = Depends(verify_admin),
+):
+    async with async_session() as session:
+        result = await session.execute(select(Task).where(Task.id == task_id))
+        task = result.scalar_one_or_none()
+        if task is None:
+            raise HTTPException(status_code=404, detail="Task not found")
+
+        update_data = body.model_dump(exclude_unset=True)
+        for field, value in update_data.items():
+            setattr(task, field, value)
+
+        await session.commit()
+        await session.refresh(task)
+        return TaskResponse(**task.to_dict())
+
+
+@router.delete("/tasks/{task_id}", status_code=204)
+async def delete_task(
+    task_id: str,
+    _: None = Depends(verify_admin),
+):
+    async with async_session() as session:
+        result = await session.execute(select(Task).where(Task.id == task_id))
+        task = result.scalar_one_or_none()
+        if task is None:
+            raise HTTPException(status_code=404, detail="Task not found")
+
+        # Delete related ping logs first
+        await session.execute(delete(PingLog).where(PingLog.task_id == task_id))
+        await session.delete(task)
+        await session.commit()
