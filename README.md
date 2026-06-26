@@ -46,7 +46,24 @@ cp .env.example .env
 mkdir -p data
 ```
 
-3. 使用以下 Docker Compose 配置启动服务（本仓库不保留 `docker-compose.yml` 文件；如需使用，请在部署环境自行创建）：
+3. 使用以下任一 Docker Compose 配置启动服务（本仓库不保留 `docker-compose.yml` 文件；如需使用，请在部署环境自行创建）：
+
+**使用预编译镜像（推荐）：**
+
+```yaml
+services:
+  app:
+    image: git.mitsea.com/flintylemming/task-sentinel:latest
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+    env_file:
+      - .env
+    restart: unless-stopped
+```
+
+**从本地源码构建：**
 
 ```yaml
 services:
