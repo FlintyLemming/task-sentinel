@@ -3,6 +3,7 @@ export interface TaskResponse {
   name: string
   timeout_hours: number
   alert_interval_hours: number
+  description: string | null
   status: "ok" | "offline" | "failing"
   last_ping_at: string | null
   last_ping_message: string | null
@@ -25,4 +26,25 @@ export interface PingLogResponse {
   status: string
   message: string | null
   created_at: string
+}
+
+export interface UptimeDayResponse {
+  date: string
+  ok_count: number
+  fail_count: number
+  status: "ok" | "mixed" | "failed" | "none"
+}
+
+export interface CreateTaskRequest {
+  name: string
+  timeout_hours?: number
+  alert_interval_hours?: number
+  description?: string
+}
+
+export interface UpdateTaskRequest {
+  name?: string
+  timeout_hours?: number
+  alert_interval_hours?: number
+  description?: string
 }
