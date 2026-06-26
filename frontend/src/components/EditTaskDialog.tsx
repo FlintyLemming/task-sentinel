@@ -43,7 +43,7 @@ export function EditTaskDialog({ open, onOpenChange, task, onUpdated }: EditTask
           name,
           timeout_hours: parseFloat(timeoutHours),
           alert_interval_hours: parseFloat(alertInterval),
-          description: description || null,
+          description: description || undefined,
         },
         token,
       )
