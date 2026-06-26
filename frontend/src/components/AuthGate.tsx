@@ -5,7 +5,12 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
-export function AuthGate() {
+interface AuthGateProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}
+
+export function AuthGate({ open, onOpenChange }: AuthGateProps) {
   const { login } = useAuth()
   const [password, setPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
@@ -16,14 +21,17 @@ export function AuthGate() {
     setLoading(true)
     setError(null)
     const success = await login(password)
-    if (!success) {
+    if (success) {
+      setPassword("")
+      onOpenChange(false)
+    } else {
       setError("Invalid password")
     }
     setLoading(false)
   }
 
   return (
-    <Dialog open>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <form onSubmit={handleSubmit}>
         <DialogHeader>
           <DialogTitle>Admin Access</DialogTitle>
@@ -46,6 +54,9 @@ export function AuthGate() {
           {error && <p className="text-sm text-destructive">{error}</p>}
         </div>
         <DialogFooter>
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
           <Button type="submit" disabled={loading || !password}>
             {loading ? "Verifying..." : "Unlock"}
           </Button>

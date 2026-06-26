@@ -3,6 +3,7 @@ import { Link } from "react-router-dom"
 import type { DashboardResponse } from "@/lib/types"
 import { fetchDashboard } from "@/lib/api"
 import { useAuth } from "@/lib/context"
+import { AuthGate } from "@/components/AuthGate"
 import { StatsBar } from "@/components/StatsBar"
 import { TaskCard } from "@/components/TaskCard"
 import { AddTaskDialog } from "@/components/AddTaskDialog"
@@ -17,6 +18,7 @@ export default function Dashboard() {
   const [error, setError] = useState<string | null>(null)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const [showAdd, setShowAdd] = useState(false)
+  const [showAuth, setShowAuth] = useState(false)
 
   const load = useCallback(async () => {
     try {
@@ -66,11 +68,15 @@ export default function Dashboard() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {isAdmin && (
+          {isAdmin ? (
             <>
               <Button onClick={() => setShowAdd(true)}>+ Add Task</Button>
               <Button variant="ghost" size="sm" onClick={logout}>Lock</Button>
             </>
+          ) : (
+            <Button variant="outline" size="sm" onClick={() => setShowAuth(true)}>
+              Admin
+            </Button>
           )}
         </div>
       </div>
@@ -96,6 +102,7 @@ export default function Dashboard() {
       )}
 
       {showAdd && <AddTaskDialog open={showAdd} onOpenChange={setShowAdd} onCreated={load} />}
+      <AuthGate open={showAuth} onOpenChange={setShowAuth} />
     </div>
   )
 }

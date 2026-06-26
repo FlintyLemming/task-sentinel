@@ -4,6 +4,7 @@ import type { TaskResponse, UptimeDayResponse } from "@/lib/types"
 import { fetchTask, fetchTaskUptime, deleteTask } from "@/lib/api"
 import { useAuth } from "@/lib/context"
 import { formatRelativeTime, getTimeRemaining } from "@/lib/format"
+import { AuthGate } from "@/components/AuthGate"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -26,6 +27,7 @@ export default function TaskDetail() {
   const [uptime, setUptime] = useState<UptimeDayResponse[]>([])
   const [error, setError] = useState<string | null>(null)
   const [showEdit, setShowEdit] = useState(false)
+  const [showAuth, setShowAuth] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
   const load = useCallback(async () => {
@@ -96,7 +98,7 @@ export default function TaskDetail() {
             {cfg.label}
           </Badge>
         </div>
-        {isAdmin && (
+        {isAdmin ? (
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={() => setShowEdit(true)}>
               Edit
@@ -105,6 +107,10 @@ export default function TaskDetail() {
               {deleting ? "Deleting..." : "Delete"}
             </Button>
           </div>
+        ) : (
+          <Button variant="outline" size="sm" onClick={() => setShowAuth(true)}>
+            Admin
+          </Button>
         )}
       </div>
 
@@ -182,6 +188,7 @@ export default function TaskDetail() {
           onUpdated={load}
         />
       )}
+      <AuthGate open={showAuth} onOpenChange={setShowAuth} />
     </div>
   )
 }
