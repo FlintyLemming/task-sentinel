@@ -63,9 +63,18 @@ frontend_dist = settings.FRONTEND_DIST or os.path.join(
 )
 if os.path.isdir(frontend_dist):
     from fastapi.responses import FileResponse
+    from starlette.requests import Request
 
-    @app.get("/")
-    async def serve_index():
-        return FileResponse(os.path.join(frontend_dist, "index.html"))
+    index_path = os.path.join(frontend_dist, "index.html")
+
+    @app.middleware("http")
+    async def spa_fallback(request: Request, call_next):
+        response = await call_next(request)
+        if response.status_code == 404:
+            path = request.url.path
+            # Don't intercept API or file requests
+            if not path.startswith("/api/") and "." not in path.split("/")[-1]:
+                return FileResponse(index_path)
+        return response
 
     app.mount("/", StaticFiles(directory=frontend_dist, html=True), name="frontend")
