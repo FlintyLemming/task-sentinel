@@ -16,6 +16,9 @@ class Task(Base):
     name: Mapped[str] = mapped_column(String(256), nullable=False)
     timeout_hours: Mapped[float] = mapped_column(Float, nullable=False)
     alert_interval_hours: Mapped[float] = mapped_column(Float, nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(
+        String(1024), nullable=True, default=None
+    )
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="offline")
     last_ping_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), nullable=True, default=None
@@ -45,6 +48,7 @@ class Task(Base):
             "name": self.name,
             "timeout_hours": self.timeout_hours,
             "alert_interval_hours": self.alert_interval_hours,
+            "description": self.description,
             "status": self.status,
             "last_ping_at": self.last_ping_at.isoformat()
             if self.last_ping_at
