@@ -12,6 +12,7 @@ from .config import settings
 from .database import async_session
 from .models import PingLog, Task
 from .schemas import (
+    ApiTokenResponse,
     AuthRequest,
     AuthResponse,
     CreateTaskRequest,
@@ -55,6 +56,11 @@ async def auth_check(body: AuthRequest):
         raise HTTPException(status_code=401, detail="Invalid password")
     token = create_token("admin")
     return AuthResponse(token=token)
+
+
+@router.get("/auth/api-token", response_model=ApiTokenResponse)
+async def get_api_token(_: None = Depends(verify_admin)):
+    return ApiTokenResponse(api_token=settings.API_TOKEN)
 
 
 @router.post("/ping")

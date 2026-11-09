@@ -47,6 +47,10 @@ class AuthResponse(BaseModel):
     token: str
 
 
+class ApiTokenResponse(BaseModel):
+    api_token: str
+
+
 class CreateTaskRequest(BaseModel):
     name: str = Field(min_length=1, max_length=100)
     timeout_hours: float = 24.0

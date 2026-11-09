@@ -151,7 +151,10 @@ GET /api/v1/tasks/{task_id}/uptime?days=90
 POST /api/v1/tasks
 PATCH /api/v1/tasks/{task_id}
 DELETE /api/v1/tasks/{task_id}
+GET /api/v1/auth/api-token
 ```
+
+`GET /api/v1/auth/api-token` 返回 `API_TOKEN`，前端登录后据此在接入指南的复制命令中直接填入真实 Token。
 
 ## 配置
 

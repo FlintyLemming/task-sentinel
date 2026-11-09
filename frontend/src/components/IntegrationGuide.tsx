@@ -1,4 +1,6 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import { useAuth } from "@/lib/context"
+import { fetchApiToken } from "@/lib/api"
 import { Dialog, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 
@@ -23,8 +25,28 @@ function CopyButton({ text }: { text: string }) {
 }
 
 export function IntegrationGuide({ open, onOpenChange, taskId }: IntegrationGuideProps) {
+  const { token } = useAuth()
+  const [fetched, setFetched] = useState<{ token: string; apiToken: string } | null>(null)
+
+  useEffect(() => {
+    if (!open || !token) return
+    let cancelled = false
+    fetchApiToken(token)
+      .then((resp) => {
+        if (!cancelled) setFetched({ token, apiToken: resp.api_token })
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [open, token])
+
+  // Only use the fetched API token while the current admin session matches.
+  const apiToken = token && fetched?.token === token ? fetched.apiToken : null
+
   const baseUrl = window.location.origin
-  const tokenPlaceholder = "YOUR_API_TOKEN"
+  const placeholder = "YOUR_API_TOKEN"
+  const tokenPlaceholder = apiToken ?? placeholder
 
   const curlSuccess = `curl -X POST ${baseUrl}/api/v1/ping \\
   -H "Authorization: Bearer ${tokenPlaceholder}" \\
@@ -67,8 +89,14 @@ fi`
         <DialogTitle>Integration Guide</DialogTitle>
         <DialogDescription>
           Use these commands to report task status to Task Sentinel.
-          Replace <code className="font-mono text-xs bg-muted px-1 rounded">{tokenPlaceholder}</code> with
-          the API token from your <code className="font-mono text-xs bg-muted px-1 rounded">.env</code> file.
+          {apiToken ? (
+            <> The API token is already filled in — copy and use directly.</>
+          ) : (
+            <>
+              {" "}Replace <code className="font-mono text-xs bg-muted px-1 rounded">{placeholder}</code> with
+              the API token from your <code className="font-mono text-xs bg-muted px-1 rounded">.env</code> file.
+            </>
+          )}
         </DialogDescription>
       </DialogHeader>
       <div className="space-y-4 py-2 max-h-[60vh] overflow-y-auto">

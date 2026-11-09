@@ -63,6 +63,12 @@ export async function checkPassword(password: string): Promise<{ token: string }
 }
 
 // Admin endpoints
+export async function fetchApiToken(token: string): Promise<{ api_token: string }> {
+  return request<{ api_token: string }>("/auth/api-token", {
+    headers: adminHeaders(token),
+  })
+}
+
 export async function createTask(
   data: CreateTaskRequest,
   token: string,
