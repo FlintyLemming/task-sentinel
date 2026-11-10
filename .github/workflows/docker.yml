@@ -57,3 +57,60 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  deploy:
+    # Only stable version tags move `latest`, which is what the server runs.
+    if: startsWith(github.ref, 'refs/tags/v') && !contains(github.ref_name, '-')
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    permissions: {}
+    env:
+      DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+      DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+      DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+      DEPLOY_DIR: ${{ vars.DEPLOY_DIR || 'appdata/8856-task-sentinel' }}
+    steps:
+      - name: Configure SSH
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+
+      - name: Pull image and recreate container
+        run: |
+          # The login shell on the server is fish, so run the script through bash.
+          ssh -i ~/.ssh/deploy_key -p "$DEPLOY_PORT" \
+            -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=20 \
+            "$DEPLOY_USER@$DEPLOY_HOST" \
+            bash -s -- "$DEPLOY_DIR" "$GITHUB_SHA" <<'EOF'
+          set -euo pipefail
+          cd "$1"
+          want="$2"
+          image="$(docker compose config --images | head -n1)"
+
+          # The server pulls through a registry mirror, which can lag behind
+          # GHCR. Retry until the pulled image was built from this commit.
+          for attempt in $(seq 1 10); do
+            docker compose pull --quiet
+            got="$(docker image inspect "$image" \
+              --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}')"
+            [ "$got" = "$want" ] && break
+            echo "attempt $attempt: image is at ${got:-unknown}, want $want"
+            [ "$attempt" = 10 ] && { echo "mirror never served the new image" >&2; exit 1; }
+            sleep 30
+          done
+
+          docker compose up -d --remove-orphans
+          sleep 5
+          docker compose ps
+          running="$(docker compose ps --status running --quiet | wc -l)"
+          [ "$running" -ge 1 ] || { docker compose logs --tail 50; exit 1; }
+          docker image prune -f >/dev/null
+          EOF
